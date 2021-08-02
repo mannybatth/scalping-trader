@@ -1,0 +1,89 @@
+{
+    "root": true,
+    "parser": "@typescript-eslint/parser",
+    "plugins": [
+        "@typescript-eslint"
+    ],
+    "extends": [
+        "eslint:recommended",
+        "plugin:@typescript-eslint/eslint-recommended",
+        "plugin:@typescript-eslint/recommended"
+    ],
+    "parserOptions": {
+        "project": "./tsconfig.eslint.json"
+    },
+    "rules": {
+        "@typescript-eslint/indent": [
+            "error",
+            4
+        ],
+        "@typescript-eslint/restrict-template-expressions": [
+            "warn",
+            {
+                "allowAny": true
+            }
+        ],
+        "@typescript-eslint/explicit-member-accessibility": [
+            "error",
+            {
+                "overrides": {
+                    "constructors": "off"
+                }
+            }
+        ],
+        "@typescript-eslint/no-explicit-any": "off",
+        "@typescript-eslint/no-unsafe-member-access": "off",
+        "@typescript-eslint/no-unsafe-assignment": "off",
+        "@typescript-eslint/no-unsafe-call": "off",
+        "@typescript-eslint/no-unsafe-return": "off",
+        "@typescript-eslint/unbound-method": "off",
+        "@typescript-eslint/no-floating-promises": "off",
+        "@typescript-eslint/ban-types": "warn",
+        "@typescript-eslint/restrict-plus-operands": "error",
+        "@typescript-eslint/no-misused-promises": [
+            "error",
+            {
+                "checksVoidReturn": false
+            }
+        ],
+        "@typescript-eslint/no-empty-function": [
+            "warn",
+            {
+                "allow": [
+                    "constructors"
+                ]
+            }
+        ],
+        "require-await": "off", // Must disable this as it can falsely report errors
+        "@typescript-eslint/require-await": "warn",
+        "comma-dangle": [
+            "error",
+            "never"
+        ],
+        "max-lines": [
+            "error",
+            750
+        ],
+        "array-bracket-spacing": [
+            "warn",
+            "never"
+        ],
+        "object-curly-spacing": [
+            "warn",
+            "always"
+        ],
+        "semi-spacing": [
+            "error",
+            {
+                "before": false,
+                "after": true
+            }
+        ],
+        "@typescript-eslint/keyword-spacing": "warn",
+        "quotes": "off",
+        "@typescript-eslint/quotes": [
+            "warn",
+            "single"
+        ]
+    }
+}
