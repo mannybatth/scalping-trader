@@ -21,10 +21,6 @@ const clientId = '2GYLNACFVP5FVOFFI1TYKL1X8MKP605Y';
 const Days90 = 7776000; // 90 days in seconds
 const Minutes30 = 1800 // 30 mins in seconds
 
-// const accountId = '497493614';  // margin account (mannysingh6)
-const accountId = '252367971';  // cash account (mannysingh7)
-// const accountId = '252502424';  // cash account (mannysingh8)
-
 const maxDayTradesAllowed = 3;
 
 export class TDAmeritrade {
@@ -114,14 +110,10 @@ export class TDAmeritrade {
 
         const accounts = await this.getAccounts();
         const account = accounts.find(a => {
-            if (a.securitiesAccount.type === 'MARGIN' && a.securitiesAccount.roundTrips < maxDayTradesAllowed) {
-                if (bp(a) > selectedOption.ask * 100) {
-                    return true;
-                }
-            } else if (a.securitiesAccount.type === 'CASH') {
-                if (bp(a) > selectedOption.ask * 100) {
-                    return true;
-                }
+            if (a.securitiesAccount.type === 'MARGIN' && a.securitiesAccount.roundTrips < maxDayTradesAllowed && bp(a) > selectedOption.ask * 100) {
+                return true;
+            } else if (a.securitiesAccount.type === 'CASH' && bp(a) > selectedOption.ask * 100) {
+                return true;
             }
         });
 
@@ -131,7 +123,7 @@ export class TDAmeritrade {
 
         const quantity = Math.max(1, Math.floor((bp(account) * 0.7) / (selectedOption.ask * 100)));
 
-        await buySingleOption(tokens.access_token, accountId, selectedOption.symbol, quantity, selectedOption.ask);
+        await buySingleOption(tokens.access_token, account.securitiesAccount.accountId, selectedOption.symbol, quantity, selectedOption.ask);
     }
 
     public async createAccessToken(code: string): Promise<any> {
