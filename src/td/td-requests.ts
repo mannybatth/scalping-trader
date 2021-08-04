@@ -19,6 +19,21 @@ export const getAccounts = async (accessToken: string): Promise<Account[]> => {
     }
 };
 
+export const getAccount = async ( accessToken: string, accountId: string): Promise<Account> => {
+    try {
+        const response = await axios.get(`${tdApiUrl}/accounts/${accountId}`, {
+            headers: {
+                'Authorization': `Bearer ${accessToken}`
+            }
+        });
+        return response.data;
+    } catch (err) {
+        const e = err?.response?.data || err;
+        console.log(e);
+        throw e;
+    }
+};
+
 export const getOptionsChain = async (symbol: string, accessToken: string): Promise<OptionsChainResponse> => {
     try {
         const query = searchParams({

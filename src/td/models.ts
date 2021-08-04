@@ -55,6 +55,11 @@ export interface Account {
             savings: number;
             shortMarketValue: number;
             pendingDeposits: number;
+            shortOptionMarketValue: number;
+            mutualFundValue: number;
+            bondValue: number;
+
+            // margin account
             availableFunds: number;
             availableFundsNonMarginableTrade: number;
             buyingPower: number;
@@ -69,10 +74,17 @@ export interface Account {
             regTCall: number;
             shortBalance: number;
             shortMarginValue: number;
-            shortOptionMarketValue: number;
             sma: number;
-            mutualFundValue: number;
-            bondValue: number;
+
+            // cash account
+            cashAvailableForTrading: number;
+            cashAvailableForWithdrawal: number;
+            cashCall: number;
+            longNonMarginableMarketValue: number;
+            totalCash: number;
+            cashDebitCallValue: number;
+            unsettledCash: number;
+
         };
         projectedBalances: {
             availableFunds: number;

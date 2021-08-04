@@ -1,7 +1,7 @@
 import fs from 'fs';
 import axios from 'axios';
 import { compareTimeDifference, getClosestOTMStrike, searchParams } from '../libs/helpers';
-import { buySingleOption, getAccounts, getOptionsChain, getSubscriptionKeys } from './td-requests';
+import { buySingleOption, getAccount, getAccounts, getOptionsChain, getSubscriptionKeys } from './td-requests';
 import { Account, BuyAlert, OptionsChainResponse, SubscriptionKeysResponse } from './models';
 
 interface TDTokens {
@@ -20,7 +20,10 @@ const redirectUri = 'https://localhost:3000/td-callback';
 const clientId = '2GYLNACFVP5FVOFFI1TYKL1X8MKP605Y';
 const Days90 = 7776000; // 90 days in seconds
 const Minutes30 = 1800 // 30 mins in seconds
-const accountId = '497493614';
+
+// const accountId = '497493614';  // margin account
+const accountId = '252367971';  // cash account
+
 const maxDayTradesAllowed = 3;
 
 export class TDAmeritrade {
@@ -45,6 +48,13 @@ export class TDAmeritrade {
         return getAccounts(tokens.access_token);
     }
 
+    public async getAccount(accountId: string): Promise<Account> {
+        if (!await this.validateTokens()) {
+            throw new Error('Access token is expired');
+        }
+        return getAccount(tokens.access_token, accountId);
+    }
+
     public async getOptionsChain(symbol: string): Promise<OptionsChainResponse> {
         if (!await this.validateTokens()) {
             throw new Error('Access token is expired');
@@ -64,8 +74,8 @@ export class TDAmeritrade {
             throw new Error('Access token is expired');
         }
 
-        const accounts = await this.getAccounts();
-        const account = accounts.find(a => a.securitiesAccount.accountId === accountId);
+        const account = await this.getAccount(accountId);
+        // const account = accounts.find(a => a.securitiesAccount.accountId === accountId);
         if (!account) {
             throw new Error('Account not found');
         }
@@ -99,16 +109,18 @@ export class TDAmeritrade {
             throw new Error('Underlying price is too low');
         }
 
-        if (selectedOption.bid <= 0.25) {
-            throw new Error(`Bid is ${selectedOption.bid}. Not placing order`);
+        if (selectedOption.bid <= 0.25 || selectedOption.ask <= 0.25) {
+            throw new Error(`Bid/ask is ${selectedOption.bid}:${selectedOption.ask}. Not placing order`);
         }
 
-        const buyingPower = account.securitiesAccount.currentBalances.buyingPower;
+        const buyingPower = account.securitiesAccount.currentBalances.buyingPower || account.securitiesAccount.currentBalances.cashAvailableForTrading;
         if (buyingPower < selectedOption.ask * 100) {
             throw new Error(`Not enough buying power to place order. buyingPower: ${buyingPower} ask: ${selectedOption.ask}`);
         }
 
-        await buySingleOption(tokens.access_token, accountId, selectedOption.symbol, 1, selectedOption.ask);
+        const quantity = Math.max(1, Math.floor((buyingPower * 0.7) / (selectedOption.ask * 100)));
+
+        await buySingleOption(tokens.access_token, accountId, selectedOption.symbol, quantity, selectedOption.ask);
     }
 
     public async createAccessToken(code: string): Promise<any> {
