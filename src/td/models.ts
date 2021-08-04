@@ -1,6 +1,7 @@
 export interface BuyAlert {
     symbol: string;
     side: 'long' | 'short';
+    crypto?: boolean;
 }
 
 export interface Account {

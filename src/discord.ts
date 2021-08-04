@@ -1,10 +1,11 @@
 import Discord, { TextChannel } from 'discord.js';
+import { BinanceClient } from './binance/binance';
 import { BuyAlert } from './td/models';
 import type { TDAmeritrade } from './td/td';
 
 const client = new Discord.Client();
 
-export const loginToDiscord = (td: TDAmeritrade, onLogin: () => void): void => {
+export const loginToDiscord = (td: TDAmeritrade, binance: BinanceClient, onLogin: () => void): void => {
     client.once('ready', () => {
         console.log('Discord client ready');
         onLogin();
@@ -17,7 +18,11 @@ export const loginToDiscord = (td: TDAmeritrade, onLogin: () => void): void => {
 
             (async() => {
                 try {
-                    await td.processAlert(alert);
+                    if (alert.crypto) {
+                        await binance.processAlert(alert);
+                    } else {
+                        await td.processAlert(alert);
+                    }
                 }
                 catch (e) {
                     console.log({

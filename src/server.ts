@@ -5,13 +5,15 @@ import { TDAmeritrade } from './td/td';
 import nocache from 'nocache';
 import { BuyAlert } from './td/models';
 import { loginToDiscord } from './discord';
+import { BinanceClient } from './binance/binance';
 
 const app: Application = express();
 const port = 3000;
 
 const td = new TDAmeritrade();
+const binance = new BinanceClient();
 
-loginToDiscord(td, () => {});
+loginToDiscord(td, binance, () => {});
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -35,11 +37,11 @@ app.get('/td-callback', async (req: Request, res: Response) => {
     }
 });
 
-app.get('/login', (req: Request, res: Response) => {
+app.get('/td/login', (req: Request, res: Response) => {
     return res.redirect(301, td.authUrl);
 });
 
-app.get('/accounts', async (req: Request, res: Response) => {
+app.get('/td/accounts', async (req: Request, res: Response) => {
     try {
         const response = await td.getAccounts();
         return res.status(200).send(response);
@@ -50,7 +52,7 @@ app.get('/accounts', async (req: Request, res: Response) => {
     }
 });
 
-app.get('/get-options-chain', async (req: Request, res: Response) => {
+app.get('/td/get-options-chain', async (req: Request, res: Response) => {
     try {
         const response = await td.getOptionsChain(req.query.symbol as string);
         return res.status(200).send(response);
@@ -61,7 +63,7 @@ app.get('/get-options-chain', async (req: Request, res: Response) => {
     }
 });
 
-app.get('/get-options-chain', async (req: Request, res: Response) => {
+app.get('/td/get-options-chain', async (req: Request, res: Response) => {
     try {
         const response = await td.getOptionsChain(req.query.symbol as string);
         return res.status(200).send(response);
@@ -72,7 +74,7 @@ app.get('/get-options-chain', async (req: Request, res: Response) => {
     }
 });
 
-app.get('/streamer-subscription-keys', async (req: Request, res: Response) => {
+app.get('/td/streamer-subscription-keys', async (req: Request, res: Response) => {
     try {
         const response = await td.getSubscriptionKeys();
         return res.status(200).send(response);
@@ -86,8 +88,13 @@ app.get('/streamer-subscription-keys', async (req: Request, res: Response) => {
 app.post('/alert', async (req: Request, res: Response) => {
     try {
         const alert = req.body as BuyAlert;
-        const response = await td.processAlert(alert);
-        return res.status(200).send(response);
+        if (alert.crypto) {
+            const response = await binance.processAlert(alert);
+            return res.status(200).send(response);
+        } else {
+            const response = await td.processAlert(alert);
+            return res.status(200).send(response);
+        }
     }
     catch (e) {
         return res.status(200).send({
