@@ -21,8 +21,9 @@ const clientId = '2GYLNACFVP5FVOFFI1TYKL1X8MKP605Y';
 const Days90 = 7776000; // 90 days in seconds
 const Minutes30 = 1800 // 30 mins in seconds
 
-// const accountId = '497493614';  // margin account
-const accountId = '252367971';  // cash account
+// const accountId = '497493614';  // margin account (mannysingh6)
+const accountId = '252367971';  // cash account (mannysingh7)
+// const accountId = '252502424';  // cash account (mannysingh8)
 
 const maxDayTradesAllowed = 3;
 
@@ -74,16 +75,6 @@ export class TDAmeritrade {
             throw new Error('Access token is expired');
         }
 
-        const account = await this.getAccount(accountId);
-        // const account = accounts.find(a => a.securitiesAccount.accountId === accountId);
-        if (!account) {
-            throw new Error('Account not found');
-        }
-
-        if (account.securitiesAccount.roundTrips >= maxDayTradesAllowed) {
-            throw new Error(`Max day trades reached. ${account.securitiesAccount.roundTrips}`);
-        }
-
         const optionsChain = await this.getOptionsChain(alert.symbol);
         if (!optionsChain) {
             throw new Error(`No options chain found for ${alert.symbol}`);
@@ -113,12 +104,32 @@ export class TDAmeritrade {
             throw new Error(`Bid/ask is ${selectedOption.bid}:${selectedOption.ask}. Not placing order`);
         }
 
-        const buyingPower = account.securitiesAccount.currentBalances.buyingPower || account.securitiesAccount.currentBalances.cashAvailableForTrading;
-        if (buyingPower < selectedOption.ask * 100) {
-            throw new Error(`Not enough buying power to place order. buyingPower: ${buyingPower} ask: ${selectedOption.ask}`);
+        const bp = (a: Account) => {
+            if (a.securitiesAccount.type === 'MARGIN') {
+                return a.securitiesAccount.currentBalances.buyingPower;
+            } else {
+                return a.securitiesAccount.currentBalances.cashAvailableForTrading - a.securitiesAccount.currentBalances.pendingDeposits;
+            }
+        };
+
+        const accounts = await this.getAccounts();
+        const account = accounts.find(a => {
+            if (a.securitiesAccount.type === 'MARGIN' && a.securitiesAccount.roundTrips < maxDayTradesAllowed) {
+                if (bp(a) > selectedOption.ask * 100) {
+                    return true;
+                }
+            } else if (a.securitiesAccount.type === 'CASH') {
+                if (bp(a) > selectedOption.ask * 100) {
+                    return true;
+                }
+            }
+        });
+
+        if (!account) {
+            throw new Error('No available account found');
         }
 
-        const quantity = Math.max(1, Math.floor((buyingPower * 0.7) / (selectedOption.ask * 100)));
+        const quantity = Math.max(1, Math.floor((bp(account) * 0.7) / (selectedOption.ask * 100)));
 
         await buySingleOption(tokens.access_token, accountId, selectedOption.symbol, quantity, selectedOption.ask);
     }

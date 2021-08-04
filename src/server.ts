@@ -97,6 +97,9 @@ app.post('/alert', async (req: Request, res: Response) => {
         }
     }
     catch (e) {
+        console.log({
+            error: e.message || e
+        });
         return res.status(200).send({
             error: e.message || e
         });
