@@ -2,7 +2,7 @@ import fs from 'fs';
 import axios from 'axios';
 import { compareTimeDifference, getClosestOTMStrike, searchParams } from '../libs/helpers';
 import { buySingleOption, getAccount, getAccounts, getOptionsChain, getSubscriptionKeys } from './td-requests';
-import { Account, BuyAlert, OptionsChainResponse, SubscriptionKeysResponse } from './models';
+import { Account, Alert, OptionsChainResponse, Option, SubscriptionKeysResponse } from './models';
 
 interface TDTokens {
     access_token: string;
@@ -66,7 +66,25 @@ export class TDAmeritrade {
         return getSubscriptionKeys(tokens.access_token);
     }
 
-    public async processAlert(alert: BuyAlert): Promise<any> {
+    public getBestOption(optionsChain: OptionsChainResponse, alert: Alert): Option {
+        const underlyingPrice = optionsChain.underlyingPrice;
+        const optionsMap = alert.side === 'long' ? optionsChain.callExpDateMap : optionsChain.putExpDateMap;
+        const dates = Object.keys(optionsMap);
+        const nextValidDate = dates.find(date => parseInt(date.split(':')[1]) > 2); // Find date with more than 2 days left
+
+        if (!nextValidDate) {
+            throw new Error(`No valid option chain found for ${alert.symbol}`);
+        }
+
+        const closestDateStrikes = optionsMap[nextValidDate];
+        const strikes: number[] = Object.keys(closestDateStrikes).map(key => parseFloat(key));
+
+        const { strike } = getClosestOTMStrike(strikes, underlyingPrice, alert.side);
+
+        return closestDateStrikes[strike.toFixed(1)][0];
+    }
+
+    public async processAlert(alert: Alert): Promise<any> {
         if (!await this.validateTokens()) {
             throw new Error('Access token is expired');
         }
@@ -78,23 +96,18 @@ export class TDAmeritrade {
         if (optionsChain.status !== 'SUCCESS') {
             throw new Error(`Options chain status is: ${optionsChain.status}`);
         }
+
         const underlyingPrice = optionsChain.underlyingPrice;
-        const optionsMap = alert.side === 'long' ? optionsChain.callExpDateMap : optionsChain.putExpDateMap;
-        const dates = Object.keys(optionsMap);
-        const closestDateStrikes = optionsMap[dates[0]];
-        const strikes: number[] = Object.keys(closestDateStrikes).map(key => parseFloat(key));
-
-        const { strike } = getClosestOTMStrike(strikes, underlyingPrice, alert.side);
-
-        const selectedOption = closestDateStrikes[strike.toFixed(1)][0];
 
         console.log('');
         console.log(alert.symbol, 'underlying price:', underlyingPrice);
-        console.log('selectedOption:', selectedOption.description, selectedOption.symbol);
 
         if (underlyingPrice <= 10) {
             throw new Error('Underlying price is too low');
         }
+
+        const selectedOption = this.getBestOption(optionsChain, alert);
+        console.log('selectedOption:', selectedOption.description, selectedOption.symbol);
 
         if (selectedOption.bid <= 0.25 || selectedOption.ask <= 0.25) {
             throw new Error(`Bid/ask is ${selectedOption.bid}:${selectedOption.ask}. Not placing order`);
@@ -121,7 +134,7 @@ export class TDAmeritrade {
             throw new Error('No available account found');
         }
 
-        const quantity = Math.max(1, Math.floor((bp(account) * 0.7) / (selectedOption.ask * 100)));
+        const quantity = Math.max(1, Math.floor((bp(account) * 0.8) / (selectedOption.ask * 100)));
 
         await buySingleOption(tokens.access_token, account.securitiesAccount.accountId, selectedOption.symbol, quantity, selectedOption.ask);
     }

@@ -3,7 +3,7 @@ import fs from 'fs';
 import https from 'https';
 import { TDAmeritrade } from './td/td';
 import nocache from 'nocache';
-import { BuyAlert } from './td/models';
+import { Alert } from './td/models';
 import { loginToDiscord } from './discord';
 import { BinanceClient } from './binance/binance';
 
@@ -87,7 +87,7 @@ app.get('/td/streamer-subscription-keys', async (req: Request, res: Response) =>
 
 app.post('/alert', async (req: Request, res: Response) => {
     try {
-        const alert = req.body as BuyAlert;
+        const alert = req.body as Alert;
         if (alert.crypto) {
             const response = await binance.processAlert(alert);
             return res.status(200).send(response);

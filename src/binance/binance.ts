@@ -1,14 +1,23 @@
 import keys from '../../binance-keys.json';
 import Binance, { MarginType, OrderSide, OrderType } from 'binance-api-node';
-import { BuyAlert } from '../td/models';
+import { Alert } from '../td/models';
 
-const leverage = 1;
-const takeProfit = 1.0015;
-const stopLoss = 0.9985;
+const equity = 0.6;
+const leverage = 20;
+const takeProfitPercent = 0.10;
+const stopLossPercent = 0.10;
+
+const buyTakeProfit = 1 + (takeProfitPercent / leverage);
+const buyStopLoss = 1 - (stopLossPercent / leverage);
+const sellTakeProfit = 1 - (takeProfitPercent / leverage);
+const sellStopLoss = 1 + (stopLossPercent / leverage);
 
 const generateRandomId = () => Math.random().toString(36).substr(2, 10);
 
 export class BinanceClient {
+
+    private walletCrossBalance = 0;
+
     private client = Binance({
         apiKey: keys.api_key,
         apiSecret: keys.secret_key
@@ -18,6 +27,11 @@ export class BinanceClient {
         this.client.ws.futuresUser(async (msg: any) => {
 
             if (msg.eventType === 'ACCOUNT_UPDATE') {
+
+                const walletCrossBalance = msg.balances.find((b: any) => b.asset === 'USDT')?.crossWalletBalance || '0';
+                this.walletCrossBalance = parseFloat(walletCrossBalance);
+                console.log('walletCrossBalance', this.walletCrossBalance);
+
                 for (const position of msg.positions) {
                     if (position.positionAmount === '0') {
                         const orders = await this.client.futuresOpenOrders({
@@ -35,9 +49,17 @@ export class BinanceClient {
             } else if (msg.eventType === 'ORDER_TRADE_UPDATE' && msg.orderStatus === 'FILLED') {
                 if (msg.clientOrderId.includes('new_oco_order_')) {
 
-                    const takeProfitPrice = parseFloat((msg.averagePrice * takeProfit).toFixed(2));
-                    const stopLossPrice = parseFloat((msg.averagePrice * stopLoss).toFixed(2));
+                    const tp = msg.side === 'BUY' ? buyTakeProfit : sellTakeProfit;
+                    const sl = msg.side === 'BUY' ? buyStopLoss : sellStopLoss;
 
+                    const takeProfitPrice = parseFloat((msg.averagePrice * tp).toFixed(2));
+                    const stopLossPrice = parseFloat((msg.averagePrice * sl).toFixed(2));
+
+                    console.log({
+                        'averagePrice': msg.averagePrice,
+                        takeProfitPrice,
+                        stopLossPrice
+                    });
                     await this.client.futuresOrder({
                         symbol: msg.symbol,
                         side: msg.side === 'BUY' ? 'SELL' as OrderSide : 'BUY' as OrderSide,
@@ -56,9 +78,16 @@ export class BinanceClient {
                 }
             }
         });
+
+        (async () => {
+            const result = await this.client.futuresAccountBalance();
+            const walletCrossBalance = result.find(b => b.asset === 'USDT')?.crossWalletBalance || '0';
+            this.walletCrossBalance = parseFloat(walletCrossBalance);
+            console.log('walletCrossBalance', this.walletCrossBalance);
+        })();
     }
 
-    public async processAlert(alert: BuyAlert): Promise<any> {
+    public async processAlert(alert: Alert): Promise<any> {
         try {
             await this.client.futuresMarginType({
                 symbol: alert.symbol,
@@ -75,12 +104,18 @@ export class BinanceClient {
             leverage: leverage
         });
 
+        const prices = await this.client.futuresPrices({ symbol: alert.symbol });
+        const symbolPriceStr = prices[alert.symbol] || '0';
+        const symbolPrice = parseFloat(symbolPriceStr);
+        const qty = ((this.walletCrossBalance * equity) / symbolPrice).toFixed(3);
+
         const side = alert.side === 'long' ? 'BUY' as OrderSide : 'SELL' as OrderSide;
+
         await this.client.futuresOrder({
             symbol: alert.symbol,
             side: side,
             type: 'MARKET' as OrderType,
-            quantity: '0.001',
+            quantity: qty,
             newClientOrderId: 'new_oco_order_' + generateRandomId()
         });
     }

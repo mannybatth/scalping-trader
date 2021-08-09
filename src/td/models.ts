@@ -1,4 +1,4 @@
-export interface BuyAlert {
+export interface Alert {
     symbol: string;
     side: 'long' | 'short';
     crypto?: boolean;
