@@ -1,6 +1,6 @@
 import Discord, { TextChannel } from 'discord.js';
 import { BinanceClient } from './binance/binance';
-import { Alert } from './td/models';
+import { Alert, PatternAlert } from './td/models';
 import type { TDAmeritrade } from './td/td';
 
 const client = new Discord.Client();
@@ -31,7 +31,13 @@ export const loginToDiscord = (td: TDAmeritrade, binance: BinanceClient, onLogin
                 }
             })();
         } else if ((message.channel as TextChannel)?.name === 'harmonic-pattern-alerts') {
-            //
+
+            const msgEmbed = message.embeds[0];
+            if (!msgEmbed) {
+                return;
+            }
+            const embedFields = msgEmbed.fields;
+            const patternAlert = embedFields.reduce((obj, item) => ({ ...obj, [item.name]: item.value }) ,{}) as PatternAlert;
         }
     });
 

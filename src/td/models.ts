@@ -185,3 +185,17 @@ export interface SubscriptionKeysResponse {
         key: string;
     }>;
 }
+
+export interface PatternAlert {
+    ticker: string;
+    timeframe: string;
+    time: string;
+    pattern: string;
+    action: string;
+    side: 'Long' | 'Short';
+    close: string;
+    entry?: string;
+    target1?: string;
+    target2?: string;
+    stoploss?: string;
+}
