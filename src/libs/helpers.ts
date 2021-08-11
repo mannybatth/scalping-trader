@@ -29,3 +29,20 @@ export const getClosestOTMStrike = (strikes: number[], strike: number, side: 'lo
         index
     }
 }
+
+export const pause = (milliseconds: number): Promise<void> => {
+    return new Promise(resolve => setTimeout(resolve, milliseconds));
+}
+
+export const waitFor = (condition: () => boolean, timeout: number, ): Promise<void> => {
+    return new Promise(resolve => {
+        let timeoutId: NodeJS.Timeout | null = null;
+        const check = () => {
+            if (condition()) {
+                if (timeoutId) clearTimeout(timeoutId);
+                resolve();
+            }
+        };
+        timeoutId = setTimeout(check, timeout);
+    });
+}

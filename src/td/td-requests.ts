@@ -70,7 +70,7 @@ export const getSubscriptionKeys = async (accessToken: string): Promise<Subscrip
 
 export const buySingleOption = async (accessToken: string, accountId: string, symbol: string, quantity: number, limitPrice: number): Promise<any> => {
     try {
-        const takeProfit = parseFloat((limitPrice * 1.12).toFixed(2));
+        const takeProfit = parseFloat((limitPrice * 1.10).toFixed(2));
         const stopLoss = parseFloat((limitPrice * 0.90).toFixed(2));
 
         console.log('----', new Date().toLocaleString());

@@ -1,6 +1,6 @@
 import fs from 'fs';
 import axios from 'axios';
-import { compareTimeDifference, getClosestOTMStrike, searchParams } from '../libs/helpers';
+import { compareTimeDifference, getClosestOTMStrike, pause, searchParams, waitFor } from '../libs/helpers';
 import { buySingleOption, getAccount, getAccounts, getOptionsChain, getSubscriptionKeys } from './td-requests';
 import { Account, Alert, OptionsChainResponse, Option, SubscriptionKeysResponse } from './models';
 
@@ -23,8 +23,17 @@ const Minutes30 = 1800 // 30 mins in seconds
 
 const maxDayTradesAllowed = 3;
 
+const bp = (a: Account) => {
+    if (a.securitiesAccount.type === 'MARGIN') {
+        return a.securitiesAccount.currentBalances.buyingPower;
+    } else {
+        return a.securitiesAccount.currentBalances.cashAvailableForTrading - a.securitiesAccount.currentBalances.pendingDeposits;
+    }
+};
+
 export class TDAmeritrade {
     public authUrl = `https://auth.tdameritrade.com/auth?response_type=code&redirect_uri=${encodeURI(redirectUri)}&client_id=${clientId}%40AMER.OAUTHAP`;
+    private marginAccountOrderPending = false;
 
     constructor() {
         this.validateTokens();
@@ -68,20 +77,22 @@ export class TDAmeritrade {
 
     public getBestOption(optionsChain: OptionsChainResponse, alert: Alert): Option {
         const underlyingPrice = optionsChain.underlyingPrice;
-        const optionsMap = alert.side === 'long' ? optionsChain.callExpDateMap : optionsChain.putExpDateMap;
-        const dates = Object.keys(optionsMap);
-        const nextValidDate = dates.find(date => parseInt(date.split(':')[1]) > 2); // Find date with more than 2 days left
-
-        if (!nextValidDate) {
-            throw new Error(`No valid option chain found for ${alert.symbol}`);
-        }
-
-        const closestDateStrikes = optionsMap[nextValidDate];
-        const strikes: number[] = Object.keys(closestDateStrikes).map(key => parseFloat(key));
+        const datesMap = alert.side === 'long' ? optionsChain.callExpDateMap : optionsChain.putExpDateMap;
+        const expDates = Object.keys(datesMap);
+        const strikes = Object.keys(datesMap[expDates[0]]).map(key => parseFloat(key));
 
         const { strike } = getClosestOTMStrike(strikes, underlyingPrice, alert.side);
 
-        return closestDateStrikes[strike.toFixed(1)][0];
+        const bestExpDate = expDates.find(date => {
+            const option = datesMap[date][strike.toFixed(1)][0];
+            return (option.ask > 0.9 && parseInt(date.split(':')[1]) > 2) || option.ask > 2;
+        });
+
+        if (!bestExpDate) {
+            throw new Error(`No valid option chain found for ${alert.symbol}`);
+        }
+
+        return datesMap[bestExpDate][strike.toFixed(1)][0];
     }
 
     public async processAlert(alert: Alert): Promise<any> {
@@ -113,16 +124,8 @@ export class TDAmeritrade {
             throw new Error(`Bid/ask is ${selectedOption.bid}:${selectedOption.ask}. Not placing order`);
         }
 
-        const bp = (a: Account) => {
-            if (a.securitiesAccount.type === 'MARGIN') {
-                return a.securitiesAccount.currentBalances.buyingPower;
-            } else {
-                return a.securitiesAccount.currentBalances.cashAvailableForTrading - a.securitiesAccount.currentBalances.pendingDeposits;
-            }
-        };
-
         const accounts = await this.getAccounts();
-        const account = accounts.find(a => {
+        const account = accounts.sort((a) => a.securitiesAccount.type === 'CASH' ? -1 : 1).find(a => {
             if (a.securitiesAccount.type === 'MARGIN' && a.securitiesAccount.roundTrips < maxDayTradesAllowed && bp(a) > selectedOption.ask * 100) {
                 return true;
             } else if (a.securitiesAccount.type === 'CASH' && bp(a) > selectedOption.ask * 100) {
@@ -134,9 +137,34 @@ export class TDAmeritrade {
             throw new Error('No available account found');
         }
 
+        if (account.securitiesAccount.type === 'MARGIN') {
+
+            if (this.marginAccountOrderPending) {
+                await waitFor(() => this.marginAccountOrderPending === false, 100);
+                const marginAccount = await this.getAccount(account.securitiesAccount.accountId);
+                if (!(marginAccount.securitiesAccount.roundTrips < maxDayTradesAllowed)) {
+                    throw new Error('No daytrade available on margin account');
+                }
+            }
+
+            this.marginAccountOrderPending = true;
+        }
+
         const quantity = Math.max(1, Math.floor((bp(account) * 0.8) / (selectedOption.ask * 100)));
 
-        await buySingleOption(tokens.access_token, account.securitiesAccount.accountId, selectedOption.symbol, quantity, selectedOption.ask);
+        try {
+            const response = await buySingleOption(tokens.access_token, account.securitiesAccount.accountId, selectedOption.symbol, quantity, selectedOption.ask);
+            console.log('buySingleOption response:', response);
+            if (account.securitiesAccount.type === 'MARGIN') {
+                await pause(2000);
+                this.marginAccountOrderPending = false;
+            }
+        } catch (e) {
+            if (account.securitiesAccount.type === 'MARGIN') {
+                this.marginAccountOrderPending = false;
+            }
+            throw e;
+        }
     }
 
     public async createAccessToken(code: string): Promise<any> {
