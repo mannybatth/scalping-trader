@@ -25,7 +25,7 @@ const maxDayTradesAllowed = 3;
 
 const bp = (a: Account) => {
     if (a.securitiesAccount.type === 'MARGIN') {
-        return a.securitiesAccount.currentBalances.buyingPower;
+        return a.securitiesAccount.currentBalances.buyingPower - a.securitiesAccount.currentBalances.pendingDeposits;
     } else {
         return a.securitiesAccount.currentBalances.cashAvailableForTrading - a.securitiesAccount.currentBalances.pendingDeposits;
     }
@@ -85,7 +85,7 @@ export class TDAmeritrade {
 
         const bestExpDate = expDates.find(date => {
             const option = datesMap[date][strike.toFixed(1)][0];
-            return (option.ask > 0.9 && parseInt(date.split(':')[1]) > 2) || option.ask > 2;
+            return (option.ask > 0.9 && parseInt(date.split(':')[1]) >= 1) || option.ask > 2;
         });
 
         if (!bestExpDate) {
@@ -124,7 +124,7 @@ export class TDAmeritrade {
             throw new Error(`Bid/ask is ${selectedOption.bid}:${selectedOption.ask}. Not placing order`);
         }
 
-        const accounts = await this.getAccounts();
+        const accounts = (await this.getAccounts()).sort((a,b) => bp(a) < bp(b) ? -1 : 1);
         const account = accounts.sort((a) => a.securitiesAccount.type === 'CASH' ? -1 : 1).find(a => {
             if (a.securitiesAccount.type === 'MARGIN' && a.securitiesAccount.roundTrips < maxDayTradesAllowed && bp(a) > selectedOption.ask * 100) {
                 return true;
@@ -150,7 +150,7 @@ export class TDAmeritrade {
             this.marginAccountOrderPending = true;
         }
 
-        const quantity = Math.max(1, Math.floor((bp(account) * 0.8) / (selectedOption.ask * 100)));
+        const quantity = Math.max(1, Math.floor((bp(account) * 0.7) / (selectedOption.ask * 100)));
 
         try {
             const response = await buySingleOption(tokens.access_token, account.securitiesAccount.accountId, selectedOption.symbol, quantity, selectedOption.ask);
@@ -160,6 +160,7 @@ export class TDAmeritrade {
                 this.marginAccountOrderPending = false;
             }
         } catch (e) {
+            console.log('Failed to create order')
             if (account.securitiesAccount.type === 'MARGIN') {
                 this.marginAccountOrderPending = false;
             }
@@ -199,7 +200,7 @@ export class TDAmeritrade {
             } else {
                 return null;
             }
-        } catch (err) {
+        } catch (err: any) {
             const e = err?.response?.data || err;
             console.log(e);
             throw e;
@@ -247,7 +248,7 @@ export class TDAmeritrade {
 
             // write the updated object to the tokens.json file
             fs.writeFileSync(tokensFileName, JSON.stringify(tokens, null, 2));
-        } catch (err) {
+        } catch (err: any) {
             const e = err?.response?.data || err;
             console.log(e);
             throw e;

@@ -12,7 +12,7 @@ export const getAccounts = async (accessToken: string): Promise<Account[]> => {
             }
         });
         return response.data;
-    } catch (err) {
+    } catch (err: any) {
         const e = err?.response?.data || err;
         console.log(e);
         throw e;
@@ -27,7 +27,7 @@ export const getAccount = async ( accessToken: string, accountId: string): Promi
             }
         });
         return response.data;
-    } catch (err) {
+    } catch (err: any) {
         const e = err?.response?.data || err;
         console.log(e);
         throw e;
@@ -46,7 +46,7 @@ export const getOptionsChain = async (symbol: string, accessToken: string): Prom
             }
         });
         return response.data;
-    } catch (err) {
+    } catch (err: any) {
         const e = err?.response?.data || err;
         console.log(e);
         throw e;
@@ -61,7 +61,7 @@ export const getSubscriptionKeys = async (accessToken: string): Promise<Subscrip
             }
         });
         return response.data;
-    } catch (err) {
+    } catch (err: any) {
         const e = err?.response?.data || err;
         console.log(e);
         throw e;
@@ -70,8 +70,8 @@ export const getSubscriptionKeys = async (accessToken: string): Promise<Subscrip
 
 export const buySingleOption = async (accessToken: string, accountId: string, symbol: string, quantity: number, limitPrice: number): Promise<any> => {
     try {
-        const takeProfit = parseFloat((limitPrice * 1.10).toFixed(2));
-        const stopLoss = parseFloat((limitPrice * 0.90).toFixed(2));
+        const takeProfit = parseFloat((limitPrice * 1.20).toFixed(2));
+        const stopLoss = parseFloat((limitPrice * 0.60).toFixed(2));
 
         console.log('----', new Date().toLocaleString());
         console.log(`Buying ${quantity} ${symbol} at ${limitPrice}`);
@@ -142,7 +142,7 @@ export const buySingleOption = async (accessToken: string, accountId: string, sy
             }
         });
         return response.data;
-    } catch (err) {
+    } catch (err: any) {
         const e = err?.response?.data || err;
         console.log(e);
         throw e;
