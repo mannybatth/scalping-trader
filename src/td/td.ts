@@ -3,6 +3,7 @@ import axios from 'axios';
 import { compareTimeDifference, getClosestOTMStrike, pause, searchParams, waitFor } from '../libs/helpers';
 import { buySingleOption, getAccount, getAccounts, getOptionsChain, getSubscriptionKeys } from './td-requests';
 import { Account, Alert, OptionsChainResponse, Option, SubscriptionKeysResponse } from './models';
+import { maxDayTradesAllowed, minUnderlyingPrice, positionSizePercentage } from '../constants';
 
 interface TDTokens {
     access_token: string;
@@ -20,8 +21,6 @@ const redirectUri = 'https://localhost:3000/td-callback';
 const clientId = '2GYLNACFVP5FVOFFI1TYKL1X8MKP605Y';
 const Days90 = 7776000; // 90 days in seconds
 const Minutes30 = 1800 // 30 mins in seconds
-
-const maxDayTradesAllowed = 3;
 
 const bp = (a: Account) => {
     if (a.securitiesAccount.type === 'MARGIN') {
@@ -113,7 +112,7 @@ export class TDAmeritrade {
         console.log('');
         console.log(alert.symbol, 'underlying price:', underlyingPrice);
 
-        if (underlyingPrice <= 10) {
+        if (underlyingPrice <= minUnderlyingPrice) {
             throw new Error('Underlying price is too low');
         }
 
@@ -150,7 +149,7 @@ export class TDAmeritrade {
             this.marginAccountOrderPending = true;
         }
 
-        const quantity = Math.max(1, Math.floor((bp(account) * 0.7) / (selectedOption.ask * 100)));
+        const quantity = Math.max(1, Math.floor((bp(account) * positionSizePercentage) / (selectedOption.ask * 100)));
 
         try {
             const response = await buySingleOption(tokens.access_token, account.securitiesAccount.accountId, selectedOption.symbol, quantity, selectedOption.ask);

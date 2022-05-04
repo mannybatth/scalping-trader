@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { stopLossPercentage, takeProfitPercentage } from '../constants';
 import { searchParams } from '../libs/helpers';
 import { Account, OptionsChainResponse, SubscriptionKeysResponse } from './models';
 
@@ -70,8 +71,8 @@ export const getSubscriptionKeys = async (accessToken: string): Promise<Subscrip
 
 export const buySingleOption = async (accessToken: string, accountId: string, symbol: string, quantity: number, limitPrice: number): Promise<any> => {
     try {
-        const takeProfit = parseFloat((limitPrice * 1.20).toFixed(2));
-        const stopLoss = parseFloat((limitPrice * 0.60).toFixed(2));
+        const takeProfit = parseFloat((limitPrice * takeProfitPercentage).toFixed(2));
+        const stopLoss = parseFloat((limitPrice * stopLossPercentage).toFixed(2));
 
         console.log('----', new Date().toLocaleString());
         console.log(`Buying ${quantity} ${symbol} at ${limitPrice}`);
