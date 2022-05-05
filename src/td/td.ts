@@ -84,7 +84,7 @@ export class TDAmeritrade {
 
         const bestExpDate = expDates.find(date => {
             const option = datesMap[date][strike.toFixed(1)][0];
-            return (option.ask > 0.9 && parseInt(date.split(':')[1]) >= 1) || option.ask > 2;
+            return (option.ask > 0.9 && parseInt(date.split(':')[1]) > 1);
         });
 
         if (!bestExpDate) {

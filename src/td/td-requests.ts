@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { stopLossPercentage, takeProfitPercentage } from '../constants';
+import { stopLossPercentage, takeProfitOnePercentage, takeProfitTwoPercentage } from '../constants';
 import { searchParams } from '../libs/helpers';
 import { Account, OptionsChainResponse, SubscriptionKeysResponse } from './models';
 
@@ -71,12 +71,20 @@ export const getSubscriptionKeys = async (accessToken: string): Promise<Subscrip
 
 export const buySingleOption = async (accessToken: string, accountId: string, symbol: string, quantity: number, limitPrice: number): Promise<any> => {
     try {
-        const takeProfit = parseFloat((limitPrice * takeProfitPercentage).toFixed(2));
+        if (quantity < 1) {
+            throw new Error('Quantity must be greater than 0');
+        }
+
+        const takeProfitOne = parseFloat((limitPrice * takeProfitOnePercentage).toFixed(2));
+        const takeProfitTwo = parseFloat((limitPrice * takeProfitTwoPercentage).toFixed(2));
         const stopLoss = parseFloat((limitPrice * stopLossPercentage).toFixed(2));
+        const takeProfitOneQuantity = quantity === 1 ? 1 : Math.ceil(quantity * 0.5);
+        const takeProfitTwoQuantity = Math.max(0, quantity - takeProfitOneQuantity);
 
         console.log('----', new Date().toLocaleString());
         console.log(`Buying ${quantity} ${symbol} at ${limitPrice}`);
-        console.log(`Take profit: ${takeProfit}`);
+        console.log(`Take profit One: ${takeProfitOne}`);
+        console.log(`Take profit Two: ${takeProfitTwo}`);
         console.log(`Stop loss: ${stopLoss}`);
         console.log('----');
 
@@ -105,11 +113,11 @@ export const buySingleOption = async (accessToken: string, accountId: string, sy
                             session: 'NORMAL',
                             duration: 'GOOD_TILL_CANCEL',
                             orderType: 'LIMIT',
-                            price: takeProfit,
+                            price: takeProfitOne,
                             orderLegCollection: [
                                 {
                                     instruction: 'SELL_TO_CLOSE',
-                                    quantity: quantity,
+                                    quantity: takeProfitOneQuantity,
                                     instrument: {
                                         symbol: symbol,
                                         assetType: 'OPTION'
@@ -117,6 +125,23 @@ export const buySingleOption = async (accessToken: string, accountId: string, sy
                                 }
                             ]
                         },
+                        ...(takeProfitTwoQuantity > 0 ? [{
+                            orderStrategyType: 'SINGLE',
+                            session: 'NORMAL',
+                            duration: 'GOOD_TILL_CANCEL',
+                            orderType: 'LIMIT',
+                            price: takeProfitTwo,
+                            orderLegCollection: [
+                                {
+                                    instruction: 'SELL_TO_CLOSE',
+                                    quantity: takeProfitTwoQuantity,
+                                    instrument: {
+                                        symbol: symbol,
+                                        assetType: 'OPTION'
+                                    }
+                                }
+                            ]
+                        }] : []),
                         {
                             orderStrategyType: 'SINGLE',
                             session: 'NORMAL',
