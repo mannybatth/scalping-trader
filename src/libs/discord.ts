@@ -19,9 +19,9 @@ export const loginToDiscord = (onLogin: () => void): void => {
     client.ws.on(GatewayDispatchEvents.MessageCreate, async (message) => {
         if (message.author.bot && message.author.username === 'Alert Bot') {
             try {
-                const alert: BuyOptionAction = JSON.parse(message.content);
-                console.log('discord msg', alert);
-                const response = await buyBestOption(alert);
+                const action: BuyOptionAction = JSON.parse(message.content);
+                console.log('discord msg', action);
+                const response = await buyBestOption(action);
                 console.log('action response', response);
             } catch (e: any) {
                 console.log({

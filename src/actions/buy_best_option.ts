@@ -1,8 +1,6 @@
 import { getContracts } from '../alpaca/contracts';
-import { createOrder, OrderRequest } from '../alpaca/orders';
-import { getLastQuoteBySymbol, LastQuoteResponse } from '../alpaca/quote';
-import { roundToCents } from '../libs/helpers';
 import { DateTime } from 'luxon';
+import { createOrderByContractSymbol } from './buy_option';
 
 export interface BuyOptionAction {
     symbol: string;
@@ -40,32 +38,7 @@ export const buyBestOption = async ({ symbol, type }: BuyOptionAction): Promise<
         }
 
         // Get the last quote for the selected contract
-        const lastQuoteResponse: LastQuoteResponse = await getLastQuoteBySymbol(bestHighInterestContract.symbol);
-        const askPrice = lastQuoteResponse.quote.ap;
-        const bidPrice = lastQuoteResponse.quote.bp;
-
-        // Calculate take profit and stop loss prices
-        const takeProfitPrice = roundToCents(askPrice * 1.10);
-        const stopLossPrice = roundToCents(bidPrice * 0.10);
-
-        // Place a market order for one contract
-        const orderRequest: OrderRequest = {
-            symbol: bestHighInterestContract.symbol,
-            qty: 1,
-            side: 'buy',
-            type: 'market',
-            time_in_force: 'day',
-            order_class: 'bracket',
-            take_profit: {
-                limit_price: takeProfitPrice
-            },
-            stop_loss: {
-                stop_price: stopLossPrice
-            },
-            position_intent: 'BTO'
-        };
-
-        const orderResponse = await createOrder(orderRequest);
+        const orderResponse = await createOrderByContractSymbol({ contractSymbol: bestHighInterestContract.symbol });
         return orderResponse;
     } catch (err: any) {
         const e = err?.response?.data || err;
