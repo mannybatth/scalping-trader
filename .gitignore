@@ -51,3 +51,4 @@ td-tokens.json
 server.key
 server.cert
 binance-keys.json
+.env

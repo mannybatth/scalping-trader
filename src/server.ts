@@ -2,6 +2,11 @@ import express, { Application, Request, Response } from 'express';
 import fs from 'fs';
 import https from 'https';
 import nocache from 'nocache';
+import { getAccount } from './alpaca/account';
+import { buyOption } from './actions/buy_option';
+import { loginToDiscord } from './libs/discord';
+
+loginToDiscord(() => {});
 
 const app: Application = express();
 const port = 4000;
@@ -12,8 +17,44 @@ app.use(nocache());
 
 app.get('/', (req: Request, res: Response): Response => {
     return res.status(200).send({
-        message: 'Hello World!'
+        message: `Hello, world!`
     });
+});
+
+app.get('/account', async (req: Request, res: Response) => {
+    try {
+        const response = await getAccount();
+        return res.status(200).send({
+            account: response
+        });
+    } catch (e: any) {
+        return res.status(200).send({
+            error: e?.message || e
+        });
+    }
+});
+
+interface BuyOptionRequest {
+    type: 'call' | 'put';
+    symbol: string;
+}
+
+app.post('/buy-option', async (req: Request, res: Response) => {
+    try {
+        const { symbol, type }: BuyOptionRequest = req.body;
+        if (!symbol || !type) {
+            throw new Error('Missing required parameters');
+        }
+
+        const response = await buyOption({ symbol, type });
+        return res.status(200).send({
+            order: response
+        });
+    } catch (e: any) {
+        return res.status(200).send({
+            error: e?.message || e
+        });
+    }
 });
 
 try {
