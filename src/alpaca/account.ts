@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { ALPACA_DOMAIN, ALPACA_KEY, ALPACA_SECRET } from '../constants';
 
-interface AccountResponse {
+interface AlpacaAccount {
     id: string;
     account_number: string;
     status: string;
@@ -37,7 +37,7 @@ interface AccountResponse {
     crypto_positions_count: number;
 }
 
-export const getAccount = async (): Promise<AccountResponse> => {
+export const getAccount = async (): Promise<AlpacaAccount> => {
     try {
         const response = await axios.get(`${ALPACA_DOMAIN}/account`, {
             headers: {

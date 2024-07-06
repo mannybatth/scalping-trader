@@ -1,5 +1,5 @@
-import Discord, { TextChannel, Events, ShardEvents, GatewayIntentBits, Partials, GatewayDispatchEvents } from 'discord.js';
-import { buyOption, BuyOptionAction } from '../actions/buy_option';
+import Discord, { Events, GatewayIntentBits, Partials, GatewayDispatchEvents } from 'discord.js';
+import { buyBestOption, BuyOptionAction } from '../actions/buy_best_option';
 
 const client = new Discord.Client({
     intents: [
@@ -21,7 +21,7 @@ export const loginToDiscord = (onLogin: () => void): void => {
             try {
                 const alert: BuyOptionAction = JSON.parse(message.content);
                 console.log('discord msg', alert);
-                const response = await buyOption(alert);
+                const response = await buyBestOption(alert);
                 console.log('action response', response);
             } catch (e: any) {
                 console.log({

@@ -3,7 +3,7 @@ import fs from 'fs';
 import https from 'https';
 import nocache from 'nocache';
 import { getAccount } from './alpaca/account';
-import { buyOption } from './actions/buy_option';
+import { buyBestOption } from './actions/buy_best_option';
 import { loginToDiscord } from './libs/discord';
 
 loginToDiscord(() => {});
@@ -17,7 +17,7 @@ app.use(nocache());
 
 app.get('/', (req: Request, res: Response): Response => {
     return res.status(200).send({
-        message: `Hello, world!`
+        message: 'Hello, world!'
     });
 });
 
@@ -39,14 +39,14 @@ interface BuyOptionRequest {
     symbol: string;
 }
 
-app.post('/buy-option', async (req: Request, res: Response) => {
+app.post('/buy-best-option', async (req: Request, res: Response) => {
     try {
         const { symbol, type }: BuyOptionRequest = req.body;
         if (!symbol || !type) {
             throw new Error('Missing required parameters');
         }
 
-        const response = await buyOption({ symbol, type });
+        const response = await buyBestOption({ symbol, type });
         return res.status(200).send({
             order: response
         });
