@@ -26,7 +26,7 @@ export const createOrderByContractSymbol = async ({ contractSymbol }: BuyOptionA
         const fifteenMinutesBeforeClose = marketClose.minus({ minutes: 15 });
 
         if (now >= fifteenMinutesBeforeClose) {
-            console.log('Exiting: It is 15 minutes before market close.');
+            console.log('Exiting: It is 15 minutes before market close or market is closed.');
             return;
         }
 
