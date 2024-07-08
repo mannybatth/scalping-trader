@@ -25,9 +25,7 @@ export const createOrderByContractSymbol = async ({ contractSymbol }: BuyOptionA
             qty: 1,
             side: 'buy',
             type: 'market',
-            time_in_force: 'day',
-            order_class: 'bracket',
-            position_intent: 'BTO'
+            time_in_force: 'day'
         };
 
         const orderResponse = await createOrder(orderRequest);

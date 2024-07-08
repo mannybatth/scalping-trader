@@ -1,4 +1,4 @@
-import { getContracts } from '../alpaca/contracts';
+import { getContracts, OptionContract } from '../alpaca/contracts';
 import { DateTime } from 'luxon';
 import { createOrderByContractSymbol } from './buy_option';
 
@@ -28,10 +28,18 @@ export const buyBestOption = async ({ symbol, type }: BuyOptionAction): Promise<
             throw new Error('No options contracts found for the given symbol.');
         }
 
-        // Find the contract with the highest open interest
-        const bestHighInterestContract = contracts.reduce((prev, current) =>
-            (Number(current.open_interest) > Number(prev.open_interest)) ? current : prev
-        );
+        // Find the contract with the highest open interest and close_price greater than 0.15
+        const bestHighInterestContract: OptionContract | null = contracts.reduce<OptionContract | null>((acc, contract) => {
+            const openInterest = Number(contract.open_interest);
+            const closePrice = Number(contract.close_price);
+
+            if (closePrice > 0.15 && (!acc || openInterest > Number(acc.open_interest))) {
+                return contract;
+            }
+
+            return acc;
+        }, null);
+
 
         if (!bestHighInterestContract) {
             throw new Error('No high interest contract found');
