@@ -5,7 +5,10 @@ import { getAccount } from './alpaca/account';
 import { buyBestOption } from './actions/buy_best_option';
 import { loginToDiscord } from './libs/discord';
 import { createOrderByContractSymbol } from './actions/buy_option';
+import { ws } from './alpaca/socket-events';
+import { getContracts } from './alpaca/contracts';
 
+ws.connect();
 loginToDiscord(() => {});
 
 const app: Application = express();
@@ -66,6 +69,27 @@ app.post('/buy-best-option', async (req: Request, res: Response) => {
         const response = await buyBestOption({ symbol, type });
         return res.status(200).send({
             order: response
+        });
+    } catch (e: any) {
+        return res.status(200).send({
+            error: e?.message || e
+        });
+    }
+});
+
+app.get('/option-contracts', async (req: Request, res: Response) => {
+    const symbol = req.query.symbol as string;
+    const type = req.query.type as 'call' | 'put';
+    if (!symbol || !type) {
+        return res.status(200).send({
+            error: 'Missing required parameters'
+        });
+    }
+
+    try {
+        const response = await getContracts(symbol, type);
+        return res.status(200).send({
+            contracts: response
         });
     } catch (e: any) {
         return res.status(200).send({

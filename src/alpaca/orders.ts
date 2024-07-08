@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { ALPACA_DOMAIN, ALPACA_KEY, ALPACA_SECRET } from '../constants';
+import { ALPACA_BASE_URL, ALPACA_KEY, ALPACA_SECRET } from '../constants';
 
 export interface OrderRequest {
     symbol: string;                  // The symbol identifier for the asset being traded
@@ -23,7 +23,7 @@ export interface OrderRequest {
 
 export const createOrder = async (order: OrderRequest): Promise<any> => {
     try {
-        const response = await axios.post(`${ALPACA_DOMAIN}/orders`, order, {
+        const response = await axios.post(`${ALPACA_BASE_URL}/orders`, order, {
             headers: {
                 'APCA-API-KEY-ID': ALPACA_KEY,
                 'APCA-API-SECRET-KEY': ALPACA_SECRET

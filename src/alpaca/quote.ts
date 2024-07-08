@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { ALPACA_DOMAIN, ALPACA_KEY, ALPACA_SECRET } from '../constants';
+import { ALPACA_DATA_URL, ALPACA_KEY, ALPACA_SECRET } from '../constants';
 
 export interface Quote {
     T: string;           // Message type, always "q"
@@ -22,7 +22,7 @@ export interface LastQuoteResponse {
 
 export const getLastQuoteBySymbol = async (symbol: string): Promise<LastQuoteResponse> => {
     try {
-        const response = await axios.get<LastQuoteResponse>(`${ALPACA_DOMAIN}/v2/stocks/${symbol}/quotes/latest`, {
+        const response = await axios.get<LastQuoteResponse>(`${ALPACA_DATA_URL}/stocks/${symbol}/quotes/latest`, {
             headers: {
                 'APCA-API-KEY-ID': ALPACA_KEY,
                 'APCA-API-SECRET-KEY': ALPACA_SECRET

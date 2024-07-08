@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { ALPACA_DOMAIN, ALPACA_KEY, ALPACA_SECRET } from '../constants';
+import { ALPACA_DATA_URL, ALPACA_KEY, ALPACA_SECRET } from '../constants';
 
 export interface Trade {
     t: string;           // Timestamp
@@ -18,7 +18,7 @@ export interface LastTradeResponse {
 
 export const getLastTradeBySymbol = async (symbol: string): Promise<LastTradeResponse> => {
     try {
-        const response = await axios.get<LastTradeResponse>(`${ALPACA_DOMAIN}/v2/stocks/${symbol}/trades/latest`, {
+        const response = await axios.get<LastTradeResponse>(`${ALPACA_DATA_URL}/stocks/${symbol}/trades/latest`, {
             headers: {
                 'APCA-API-KEY-ID': ALPACA_KEY,
                 'APCA-API-SECRET-KEY': ALPACA_SECRET

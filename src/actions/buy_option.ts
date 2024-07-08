@@ -1,20 +1,9 @@
 import { createOrder, OrderRequest } from '../alpaca/orders';
-import { getLastQuoteBySymbol, LastQuoteResponse } from '../alpaca/quote';
-import { roundToCents } from '../libs/helpers';
 import { DateTime } from 'luxon';
 
 export interface BuyOptionAction {
     contractSymbol: string;
 }
-
-const extractUnderlyingSymbol = (contractSymbol: string): string => {
-    // Assuming the underlying symbol is the initial part of the contract symbol before the date
-    const match = contractSymbol.match(/^[A-Z]+/);
-    if (!match) {
-        throw new Error('Invalid contract symbol format');
-    }
-    return match[0];
-};
 
 export const createOrderByContractSymbol = async ({ contractSymbol }: BuyOptionAction): Promise<any> => {
     try {
@@ -30,18 +19,6 @@ export const createOrderByContractSymbol = async ({ contractSymbol }: BuyOptionA
             return;
         }
 
-        // Extract the underlying stock symbol from the contract symbol
-        const underlyingSymbol = extractUnderlyingSymbol(contractSymbol);
-
-        // Get the last quote for the underlying symbol
-        const lastQuoteResponse: LastQuoteResponse = await getLastQuoteBySymbol(underlyingSymbol);
-        const askPrice = lastQuoteResponse.quote.ap;
-        const bidPrice = lastQuoteResponse.quote.bp;
-
-        // Calculate take profit and stop loss prices
-        const takeProfitPrice = roundToCents(askPrice * 1.10);
-        const stopLossPrice = roundToCents(bidPrice * 0.10);
-
         // Place a market order for one contract
         const orderRequest: OrderRequest = {
             symbol: contractSymbol,
@@ -50,12 +27,6 @@ export const createOrderByContractSymbol = async ({ contractSymbol }: BuyOptionA
             type: 'market',
             time_in_force: 'day',
             order_class: 'bracket',
-            take_profit: {
-                limit_price: takeProfitPrice
-            },
-            stop_loss: {
-                stop_price: stopLossPrice
-            },
             position_intent: 'BTO'
         };
 

@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { ALPACA_DOMAIN, ALPACA_KEY, ALPACA_SECRET } from '../constants';
+import { ALPACA_BASE_URL, ALPACA_KEY, ALPACA_SECRET } from '../constants';
 import { getLastTradeBySymbol, LastTradeResponse } from './last-trade';
 
 export interface OptionContract {
@@ -58,7 +58,7 @@ export const getContracts = async (symbol: string, type: 'call' | 'put'): Promis
         const thirtyDaysFromNow = new Date(today);
         thirtyDaysFromNow.setDate(today.getDate() + 30);
 
-        const contractsResponse = await axios.get<OptionContractResponse>(`${ALPACA_DOMAIN}/options/contracts`, {
+        const contractsResponse = await axios.get<OptionContractResponse>(`${ALPACA_BASE_URL}/options/contracts`, {
             params: {
                 underlying_symbols: symbol,
                 type: type,

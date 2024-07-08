@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { ALPACA_DOMAIN, ALPACA_KEY, ALPACA_SECRET } from '../constants';
+import { ALPACA_BASE_URL, ALPACA_KEY, ALPACA_SECRET } from '../constants';
 
 interface AlpacaAccount {
     id: string;
@@ -39,7 +39,7 @@ interface AlpacaAccount {
 
 export const getAccount = async (): Promise<AlpacaAccount> => {
     try {
-        const response = await axios.get(`${ALPACA_DOMAIN}/account`, {
+        const response = await axios.get(`${ALPACA_BASE_URL}/account`, {
             headers: {
                 'APCA-API-KEY-ID': ALPACA_KEY,
                 'APCA-API-SECRET-KEY': ALPACA_SECRET
