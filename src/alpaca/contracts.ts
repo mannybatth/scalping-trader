@@ -58,7 +58,7 @@ export const getContracts = async (symbol: string, type: 'call' | 'put'): Promis
         const thirtyDaysFromNow = new Date(today);
         thirtyDaysFromNow.setDate(today.getDate() + 30);
 
-        const contractsResponse = await axios.get<OptionContractResponse>(`${ALPACA_BASE_URL}/options/contracts`, {
+        const contractsResponse = await axios.get<OptionContractResponse>(`${ALPACA_BASE_URL}/v2/options/contracts`, {
             params: {
                 underlying_symbols: symbol,
                 type: type,

@@ -18,7 +18,7 @@ export interface LastTradeResponse {
 
 export const getLastTradeBySymbol = async (symbol: string): Promise<LastTradeResponse> => {
     try {
-        const response = await axios.get<LastTradeResponse>(`${ALPACA_DATA_URL}/stocks/${symbol}/trades/latest`, {
+        const response = await axios.get<LastTradeResponse>(`${ALPACA_DATA_URL}/v2/stocks/${symbol}/trades/latest`, {
             headers: {
                 'APCA-API-KEY-ID': ALPACA_KEY,
                 'APCA-API-SECRET-KEY': ALPACA_SECRET

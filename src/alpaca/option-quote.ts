@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { ALPACA_DATA_URL, ALPACA_KEY, ALPACA_SECRET } from '../constants';
 
-export interface Quote {
+export interface OptionQuote {
     T: string;           // Message type, always "q"
     S: string;           // Symbol
     bx: string;          // Bid exchange code
@@ -15,24 +15,27 @@ export interface Quote {
     z: string;           // Tape
 }
 
-export interface LastQuoteResponse {
-    symbol: string;
-    quote: Quote;
+export interface LastOptionQuotesResponse {
+    quotes: { [symbol: string]: OptionQuote };
 }
 
-export const getLastQuoteBySymbol = async (symbol: string): Promise<LastQuoteResponse> => {
+export const getLastOptionQuotesBySymbols = async (symbols: string, feed: string = 'opra'): Promise<LastOptionQuotesResponse> => {
     try {
-        const response = await axios.get<LastQuoteResponse>(`${ALPACA_DATA_URL}/v2/stocks/${symbol}/quotes/latest`, {
+        const response = await axios.get<LastOptionQuotesResponse>(`${ALPACA_DATA_URL}/v1beta1/options/quotes/latest`, {
+            params: {
+                symbols: symbols,
+                feed: feed
+            },
             headers: {
                 'APCA-API-KEY-ID': ALPACA_KEY,
                 'APCA-API-SECRET-KEY': ALPACA_SECRET
             }
         });
-        console.log('last quote response', response.data);
+        console.log('last option quotes response', response.data);
         return response.data;
     } catch (err: any) {
         const e = err?.response?.data || err;
-        console.log('last quote error', e);
+        console.log('last option quotes error', e);
         throw e;
     }
 };
