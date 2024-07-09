@@ -1,6 +1,8 @@
 import { DateTime } from 'luxon';
 import { createOrder, OrderRequest } from '../alpaca/orders';
 import { AlpacaAccount, getAccount } from '../alpaca/account';
+import { getOptionContractBySymbolOrId } from '../alpaca/contracts';
+// import { getLastOptionQuotesBySymbols } from '../alpaca/option-quote';
 
 export interface BuyOptionAction {
     contractSymbol: string;
@@ -21,6 +23,15 @@ export const createOrderByContractSymbol = async ({ contractSymbol, closePrice }
         //     return;
         // }
 
+        if (!closePrice) {
+            const contract = await getOptionContractBySymbolOrId(contractSymbol);
+            closePrice = contract.close_price;
+        }
+        // const response = await getLastOptionQuotesBySymbols(contractSymbol);
+        // console.log('getLastOptionQuotesBySymbols response', response)
+        // const quote = response.quotes[0];
+        // closePrice = String(quote.ap);
+
         // Fetch the account information
         const account: AlpacaAccount = await getAccount();
         const buyingPower = parseFloat(account.options_buying_power);
@@ -34,6 +45,7 @@ export const createOrderByContractSymbol = async ({ contractSymbol, closePrice }
 
         console.log('buyingPower', buyingPower);
         console.log('budget', budget);
+        console.log('costPerContract', costPerContract);
         console.log('qty', qty);
 
         // Place a market order for the calculated quantity

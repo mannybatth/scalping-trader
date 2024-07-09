@@ -28,27 +28,37 @@ export const buyBestOption = async ({ symbol, type }: BuyOptionAction): Promise<
             throw new Error('No options contracts found for the given symbol.');
         }
 
-        // Find the contract with the highest open interest and close_price greater than 0.15
-        const bestHighInterestContract: OptionContract | null = contracts.reduce<OptionContract | null>((acc, contract) => {
-            const openInterest = Number(contract.open_interest);
-            const closePrice = Number(contract.close_price);
+        // Sort the contracts by strike price and open interest
+        const sortedContracts = contracts.sort((a: OptionContract, b: OptionContract) => {
+            const strikePriceA = Number(a.strike_price);
+            const strikePriceB = Number(b.strike_price);
+            const openInterestA = Number(a.open_interest);
+            const openInterestB = Number(b.open_interest);
 
-            if (closePrice > 0.15 && (!acc || openInterest > Number(acc.open_interest))) {
-                return contract;
+            if (type === 'call') {
+                if (strikePriceA !== strikePriceB) {
+                    return strikePriceA - strikePriceB; // Lowest strike price first
+                }
+            } else {
+                if (strikePriceA !== strikePriceB) {
+                    return strikePriceB - strikePriceA; // Highest strike price first
+                }
             }
 
-            return acc;
-        }, null);
+            return openInterestB - openInterestA; // Highest open interest first
+        });
 
+        // Find the best contract with close_price greater than 0.15
+        const bestContract: OptionContract | null = sortedContracts.find(contract => Number(contract.close_price) > 0.15) || null;
 
-        if (!bestHighInterestContract) {
-            throw new Error('No high interest contract found');
+        if (!bestContract) {
+            throw new Error('No suitable contract found');
         }
 
         // Get the last quote for the selected contract
         const orderResponse = await createOrderByContractSymbol({
-            contractSymbol: bestHighInterestContract.symbol,
-            closePrice: bestHighInterestContract.close_price!
+            contractSymbol: bestContract.symbol,
+            closePrice: bestContract.close_price!
         });
         return orderResponse;
     } catch (err: any) {
