@@ -5,9 +5,10 @@ import { getLastOptionQuotesBySymbols } from '../alpaca/option-quote';
 
 export interface BuyOptionAction {
     contractSymbol: string;
+    currentPrice?: number;
 }
 
-export const createOrderByContractSymbol = async ({ contractSymbol }: BuyOptionAction): Promise<any> => {
+export const createOrderByContractSymbol = async ({ contractSymbol, currentPrice }: BuyOptionAction): Promise<any> => {
     try {
         console.log('createOrderByContractSymbol', contractSymbol);
 
@@ -21,16 +22,18 @@ export const createOrderByContractSymbol = async ({ contractSymbol }: BuyOptionA
             return;
         }
 
-        const response = await getLastOptionQuotesBySymbols(contractSymbol);
-        console.log('getLastOptionQuotesBySymbols response', response)
-        const quote = response.quotes[contractSymbol];
-        const askPrice = String(quote.ap);
+        if (!currentPrice) {
+            const response = await getLastOptionQuotesBySymbols(contractSymbol);
+            console.log('getLastOptionQuotesBySymbols response', response)
+            const quote = response.quotes[contractSymbol];
+            currentPrice = quote.ap;
+        }
 
         // Fetch the account information
         const account: AlpacaAccount = await getAccount();
         const buyingPower = parseFloat(account.options_buying_power);
-        const budget = buyingPower * 0.07;
-        const costPerContract = askPrice ? parseFloat(askPrice) * 100 : 0;
+        const budget = buyingPower * 0.2;
+        const costPerContract = currentPrice ? currentPrice * 100 : 0;
 
         // Calculate the quantity to buy, min 1, max 500
         let qty = Math.floor(budget / costPerContract);

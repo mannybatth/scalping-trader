@@ -6,7 +6,7 @@ import { buyBestOption } from './actions/buy_best_option';
 import { loginToDiscord } from './libs/discord';
 import { createOrderByContractSymbol } from './actions/buy_option';
 import { ws } from './alpaca/socket-events';
-import { getContracts } from './alpaca/contracts';
+import { getOptionSnapshots } from './alpaca/contracts';
 
 ws.connect();
 loginToDiscord(() => {});
@@ -87,7 +87,7 @@ app.get('/option-contracts', async (req: Request, res: Response) => {
     }
 
     try {
-        const response = await getContracts(symbol, type);
+        const response = await getOptionSnapshots(symbol, type);
         return res.status(200).send({
             contracts: response
         });

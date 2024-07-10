@@ -30,7 +30,7 @@ class WebsocketSubscriber {
         updates_client.onOrderUpdate(async (data: OrderUpdate) => {
             console.log(`Order updates: ${JSON.stringify(data)}`);
 
-            if (data.event === 'fill' && data.order.side === 'buy' && data.order.client_order_id.startsWith('auto-trade')) {
+            if (data.event === 'fill' && data.order?.side === 'buy' && data.order?.client_order_id?.startsWith('auto-trade')) {
                 console.log('Auto-trade buy order filled', data.order);
                 await this.createTakeProfitOrder(data.order);
             }

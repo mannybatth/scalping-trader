@@ -1,8 +1,45 @@
 import axios from 'axios';
-import { ALPACA_BASE_URL, ALPACA_KEY, ALPACA_SECRET } from '../constants';
+import { ALPACA_BASE_URL, ALPACA_DATA_URL, ALPACA_KEY, ALPACA_SECRET } from '../constants';
 import { getLastQuoteBySymbol, LastQuoteResponse } from './quote';
 
-export interface OptionContract {
+export interface ContractGreeks {
+    delta: number;
+    gamma: number;
+    rho: number;
+    theta: number;
+    vega: number;
+}
+
+export interface ContractQuote {
+    ap: number;
+    as: number;
+    ax: string;
+    bp: number;
+    bs: number;
+    bx: string;
+    c: string;
+    t: string;
+}
+
+export interface ContractTrade {
+    c: string;
+    p: number;
+    s: number;
+    t: string;
+    x: string;
+}
+
+export interface OptionSnapshot {
+    symbol: string;
+    greeks: ContractGreeks;
+    impliedVolatility: number;
+    latestQuote: ContractQuote;
+    latestTrade: ContractTrade;
+    strikePrice: string;
+    openInterest: string;
+}
+
+interface OptionContract {
     id: string;
     symbol: string;
     name: string;
@@ -21,21 +58,15 @@ export interface OptionContract {
     open_interest_date?: string;
     close_price?: string;
     close_price_date?: string;
-    deliverables?: Deliverable[];
+    // deliverables?: Deliverable[];
 }
 
-export interface Deliverable {
-    type: 'cash' | 'equity';
-    symbol: string;
-    asset_id?: string;
-    amount: string;
-    allocation_percentage: string;
-    settlement_type: 'T+0' | 'T+1' | 'T+2' | 'T+3' | 'T+4' | 'T+5';
-    settlement_method: 'BTOB' | 'CADF' | 'CAFX' | 'CCC';
-    delayed_settlement: boolean;
+interface OptionSnapshotResponse {
+    snapshots: { [key: string]: OptionSnapshot };
+    next_page_token: string | null;
 }
 
-export interface OptionContractResponse {
+interface OptionContractResponse {
     option_contracts: OptionContract[];
     next_page_token: string | null;
 }
@@ -44,8 +75,8 @@ const formatDate = (date: Date): string => {
     return date.toISOString().split('T')[0];
 }
 
-export const getContracts = async (symbol: string, type: 'call' | 'put'): Promise<{
-    contracts: OptionContract[];
+export const getOptionSnapshots = async (symbol: string, type: 'call' | 'put'): Promise<{
+    snapshots: OptionSnapshot[];
     last_symbol_quote: LastQuoteResponse;
 }> => {
     try {
@@ -61,28 +92,58 @@ export const getContracts = async (symbol: string, type: 'call' | 'put'): Promis
         console.log('lastPrice', lastPrice);
         console.log('priceAdjustment', priceAdjustment);
 
-        const contractsResponse = await axios.get<OptionContractResponse>(`${ALPACA_BASE_URL}/v2/options/contracts`, {
-            params: {
-                underlying_symbols: symbol,
-                type: type,
-                limit: 50,
-                strike_price_gte: type === 'call' ? lastPrice : lastPrice - priceAdjustment,
-                strike_price_lte: type === 'call' ? lastPrice + priceAdjustment : lastPrice,
-                style: 'american',
-                expiration_date_gte: formatDate(threeDaysFromNow),
-                expiration_date_lte: formatDate(thirtyDaysFromNow)
-            },
-            headers: {
-                'APCA-API-KEY-ID': ALPACA_KEY,
-                'APCA-API-SECRET-KEY': ALPACA_SECRET
-            }
-        });
+        const params = {
+            type: type,
+            limit: 50,
+            strike_price_gte: type === 'call' ? lastPrice : lastPrice - priceAdjustment,
+            strike_price_lte: type === 'call' ? lastPrice + priceAdjustment : lastPrice,
+            expiration_date_gte: formatDate(threeDaysFromNow),
+            expiration_date_lte: formatDate(thirtyDaysFromNow)
+        };
 
-        console.log('contracts response', contractsResponse.data.option_contracts);
+        const [snapshotsResponse, contractsResponse] = await Promise.all([
+            axios.get<OptionSnapshotResponse>(`${ALPACA_DATA_URL}/v1beta1/options/snapshots/${symbol}`, {
+                params: params,
+                headers: {
+                    'APCA-API-KEY-ID': ALPACA_KEY,
+                    'APCA-API-SECRET-KEY': ALPACA_SECRET
+                }
+            }),
+            axios.get<OptionContractResponse>(`${ALPACA_BASE_URL}/v2/options/contracts`, {
+                params: {
+                    ...params,
+                    underlying_symbols: symbol
+                },
+                headers: {
+                    'APCA-API-KEY-ID': ALPACA_KEY,
+                    'APCA-API-SECRET-KEY': ALPACA_SECRET
+                }
+            })
+        ]);
+
+        const tradableContracts = contractsResponse.data.option_contracts.filter(c => c.tradable);
+        const snapshots = Object.keys(snapshotsResponse.data.snapshots).map(key => {
+            const snapshot = snapshotsResponse.data.snapshots[key];
+            const contract = tradableContracts.find(c => c.symbol === key);
+
+            if (contract) {
+                return {
+                    ...snapshot,
+                    symbol: key,
+                    strikePrice: contract.strike_price,
+                    openInterest: contract.open_interest || '0'
+                } as OptionSnapshot;
+            }
+
+            return null;
+        }).filter(snapshot => snapshot !== null);
+
+        console.log('snapshots', snapshots.length);
+        console.log('contracts response', tradableContracts.length);
         console.log('last quote response', lastQuoteResponse);
 
         return {
-            contracts: contractsResponse.data.option_contracts,
+            snapshots,
             last_symbol_quote: lastQuoteResponse
         };
     } catch (err: any) {
@@ -92,16 +153,43 @@ export const getContracts = async (symbol: string, type: 'call' | 'put'): Promis
     }
 };
 
-export const getOptionContractBySymbolOrId = async (symbolOrId: string): Promise<OptionContract> => {
+export const getOptionContractBySymbolOrId = async (symbolOrId: string): Promise<OptionSnapshot> => {
     try {
-        const response = await axios.get<OptionContract>(`${ALPACA_BASE_URL}/v2/options/contracts/${symbolOrId}`, {
-            headers: {
-                'APCA-API-KEY-ID': ALPACA_KEY,
-                'APCA-API-SECRET-KEY': ALPACA_SECRET
-            }
-        });
-        console.log('option contract response', response.data);
-        return response.data;
+        const [snapshotResponse, contractResponse] = await Promise.all([
+            axios.get<OptionSnapshotResponse>(`${ALPACA_DATA_URL}/v1beta1/options/snapshots`, {
+                params: {
+                    symbols: symbolOrId
+                },
+                headers: {
+                    'APCA-API-KEY-ID': ALPACA_KEY,
+                    'APCA-API-SECRET-KEY': ALPACA_SECRET
+                }
+            }),
+            axios.get<OptionContractResponse>(`${ALPACA_BASE_URL}/v2/options/contracts/${symbolOrId}`, {
+                headers: {
+                    'APCA-API-KEY-ID': ALPACA_KEY,
+                    'APCA-API-SECRET-KEY': ALPACA_SECRET
+                }
+            })
+        ]);
+
+        const snapshot = snapshotResponse.data.snapshots[symbolOrId];
+        const contract = contractResponse.data.option_contracts.find(c => c.symbol === symbolOrId);
+
+        if (!contract) {
+            throw new Error('Contract not found');
+        }
+
+        const result: OptionSnapshot = {
+            ...snapshot,
+            symbol: symbolOrId,
+            strikePrice: contract.strike_price,
+            openInterest: contract.open_interest || '0'
+        };
+
+        console.log('option contract response', result);
+
+        return result;
     } catch (err: any) {
         const e = err?.response?.data || err;
         console.log('option contract error', e);

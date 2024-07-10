@@ -1,6 +1,6 @@
-import { getContracts, OptionContract } from '../alpaca/contracts';
 import { DateTime } from 'luxon';
 import { createOrderByContractSymbol } from './buy_option';
+import { getOptionSnapshots, OptionSnapshot } from '../alpaca/contracts';
 
 export interface BuyOptionAction {
     symbol: string;
@@ -22,18 +22,18 @@ export const buyBestOption = async ({ symbol, type }: BuyOptionAction): Promise<
         }
 
         // Fetch the option chain for the symbol
-        const { contracts } = await getContracts(symbol, type);
+        const { snapshots } = await getOptionSnapshots(symbol, type);
 
-        if (!contracts?.length) {
+        if (!snapshots?.length) {
             throw new Error('No options contracts found for the given symbol.');
         }
 
         // Sort the contracts by strike price and open interest
-        const sortedContracts = contracts.sort((a: OptionContract, b: OptionContract) => {
-            const strikePriceA = Number(a.strike_price);
-            const strikePriceB = Number(b.strike_price);
-            const openInterestA = Number(a.open_interest);
-            const openInterestB = Number(b.open_interest);
+        const sortedContracts = snapshots.sort((a: OptionSnapshot, b: OptionSnapshot) => {
+            const strikePriceA = Number(a.strikePrice);
+            const strikePriceB = Number(b.strikePrice);
+            const openInterestA = Number(a.openInterest);
+            const openInterestB = Number(b.openInterest);
 
             if (type === 'call') {
                 if (strikePriceA !== strikePriceB) {
@@ -49,7 +49,7 @@ export const buyBestOption = async ({ symbol, type }: BuyOptionAction): Promise<
         });
 
         // Find the best contract with close_price greater than 0.15
-        const bestContract: OptionContract | null = sortedContracts.find(contract => Number(contract.close_price) > 0.15) || null;
+        const bestContract: OptionSnapshot | null = sortedContracts.find(contract => Number(contract.latestTrade.p) > 0.15) || null;
 
         if (!bestContract) {
             throw new Error('No suitable contract found');
@@ -57,7 +57,8 @@ export const buyBestOption = async ({ symbol, type }: BuyOptionAction): Promise<
 
         // Get the last quote for the selected contract
         const orderResponse = await createOrderByContractSymbol({
-            contractSymbol: bestContract.symbol
+            contractSymbol: bestContract.symbol,
+            currentPrice: bestContract.latestTrade.p
         });
         return orderResponse;
     } catch (err: any) {
