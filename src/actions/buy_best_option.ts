@@ -55,6 +55,8 @@ export const buyBestOption = async ({ symbol, type }: BuyOptionAction): Promise<
             throw new Error('No suitable contract found');
         }
 
+        console.log('bestContract', bestContract.symbol, 'p:', bestContract.latestTrade.p, 'interest:', bestContract.openInterest);
+
         // Get the last quote for the selected contract
         const orderResponse = await createOrderByContractSymbol({
             contractSymbol: bestContract.symbol,

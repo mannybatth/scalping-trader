@@ -140,7 +140,6 @@ export const getOptionSnapshots = async (symbol: string, type: 'call' | 'put'): 
 
         console.log('snapshots', snapshots.length);
         console.log('contracts response', tradableContracts.length);
-        console.log('last quote response', lastQuoteResponse);
 
         return {
             snapshots,
