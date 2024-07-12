@@ -66,15 +66,15 @@ class WebsocketSubscriber {
                 symbols: order.symbol
             });
 
-            // Cancel sell order in parallel without awaiting
-            openOrders.forEach(async openOrder => {
+            // Cancel sell order in parallel, await all
+            await Promise.all(openOrders.map(async openOrder => {
                 try {
                     await this.alpaca.cancelOrder(openOrder.id);
-                    console.log('Cancelled open sell order', openOrder);
+                    console.log('Cancelled open sell order', openOrder.id);
                 } catch (error) {
                     console.error('Failed to cancel open sell order', error);
                 }
-            });
+            }));
 
             const takeProfitPrice = (parseFloat(openPosition.avg_entry_price) * 1.05).toFixed(2);
             takeProfitOrder = {
