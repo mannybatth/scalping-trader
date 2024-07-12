@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { ALPACA_BASE_URL, ALPACA_KEY, ALPACA_SECRET } from '../constants';
+import { Order } from './models';
 
 export interface OrderRequest {
     symbol: string;                  // The symbol identifier for the asset being traded
@@ -24,6 +25,35 @@ export interface OrderRequest {
     trail_price?: string;            // This or trail_percent is required if type is trailing_stop
     trail_percent?: string;          // This or trail_price is required if type is trailing_stop
 }
+
+export interface OrderQueryParams {
+    status?: 'open' | 'closed' | 'all';
+    limit?: number;
+    after?: string;
+    until?: string;
+    direction?: 'asc' | 'desc';
+    nested?: boolean;
+    symbols?: string;
+    side?: 'buy' | 'sell';
+}
+
+export const getAllOrders = async (params: OrderQueryParams = {}): Promise<Order[]> => {
+    try {
+        const response = await axios.get(`${ALPACA_BASE_URL}/v2/orders`, {
+            params,
+            headers: {
+                'APCA-API-KEY-ID': ALPACA_KEY,
+                'APCA-API-SECRET-KEY': ALPACA_SECRET
+            }
+        });
+        console.log('get all orders response', response.data);
+        return response.data;
+    } catch (err: any) {
+        const e = err?.response?.data || err;
+        console.log('get all orders error', e);
+        throw e;
+    }
+};
 
 export const createOrder = async (order: OrderRequest): Promise<any> => {
     try {

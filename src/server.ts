@@ -100,17 +100,19 @@ app.get('/option-contracts', async (req: Request, res: Response) => {
 
 interface BuyContractRequest {
     symbol: string;
+    force: boolean;
 }
 
 app.post('/buy-contract', async (req: Request, res: Response) => {
     try {
-        const { symbol }: BuyContractRequest = req.body;
+        const { symbol, force }: BuyContractRequest = req.body;
         if (!symbol) {
             throw new Error('Missing required parameters');
         }
 
         const response = await createOrderByContractSymbol({
-            contractSymbol: symbol
+            contractSymbol: symbol,
+            forceBuy: force
         });
         return res.status(200).send({
             order: response

@@ -55,12 +55,19 @@ export const buyBestOption = async ({ symbol, type }: BuyOptionAction): Promise<
             throw new Error('No suitable contract found');
         }
 
-        console.log('bestContract', bestContract.symbol, 'p:', bestContract.latestTrade.p, 'interest:', bestContract.openInterest);
+        console.log('bestContract', bestContract.symbol, 'p:', bestContract.latestTrade.p, 'a:', bestContract.latestQuote.ap, 'b:', bestContract.latestQuote.bp,  'interest:', bestContract.openInterest);
+
+        // Set price to 3/4 of the range between bid and ask
+        // let limitPrice = (bestContract.latestQuote.bp + (bestContract.latestQuote.ap - bestContract.latestQuote.bp) * 0.75);
+        let limitPrice = bestContract.latestQuote.ap;
+        limitPrice = Math.ceil(limitPrice * 100) / 100;
+
+        console.log('limitPrice', limitPrice);
 
         // Get the last quote for the selected contract
         const orderResponse = await createOrderByContractSymbol({
             contractSymbol: bestContract.symbol,
-            currentPrice: bestContract.latestTrade.p
+            currentPrice: limitPrice
         });
         return orderResponse;
     } catch (err: any) {

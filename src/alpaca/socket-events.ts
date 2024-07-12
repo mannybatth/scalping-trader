@@ -1,12 +1,20 @@
 import Alpaca from '@alpacahq/alpaca-trade-api';
 import { ALPACA_KEY, ALPACA_SECRET, paperMode } from '../constants';
 import { Order, OrderUpdate } from './models';
-import { createOrder, OrderRequest } from './orders';
+import { createOrder, getAllOrders, OrderRequest } from './orders';
+import { getAllOpenPositions } from './positions';
 
 class WebsocketSubscriber {
     private alpaca: Alpaca;
 
     constructor(keyId: string, secretKey: string, paper = true) {
+        const messageColor = paper ? '\x1b[32m' : '\x1b[31m'; // Green for PAPER, Red for LIVE
+        const resetColor = '\x1b[0m';
+        const liveWarning = paper ? '' : '\x1b[33m⚠️ WARNING: You are connecting to a LIVE account!⚠️\x1b[0m\n';
+        console.log(`${messageColor}Connecting to ${paper ? 'PAPER' : 'LIVE'} account${resetColor}`);
+        if (!paper) {
+            console.log(liveWarning);
+        }
         this.alpaca = new Alpaca({
             keyId: keyId,
             secretKey: secretKey,
@@ -42,15 +50,52 @@ class WebsocketSubscriber {
     }
 
     private async createTakeProfitOrder(order: Order) {
-        const takeProfitPrice = (parseFloat(order.filled_avg_price!) * 1.05).toFixed(2);
-        const takeProfitOrder: OrderRequest = {
-            symbol: order.symbol,
-            qty: order.filled_qty,
-            side: 'sell',
-            type: 'limit',
-            time_in_force: 'day',
-            limit_price: takeProfitPrice
-        };
+        let takeProfitOrder: OrderRequest;
+
+        const positions = await getAllOpenPositions();
+        const openPosition = positions.find(position => position.symbol === order.symbol);
+
+        if (openPosition && parseInt(openPosition.qty) > parseInt(order.filled_qty!)) {
+
+            console.log('Open position found', openPosition);
+
+            // Cancel open sell orders for the symbol
+            const openOrders = await getAllOrders({
+                status: 'open',
+                side: 'sell',
+                symbols: order.symbol
+            });
+
+            // Cancel sell order in parallel without awaiting
+            openOrders.forEach(async openOrder => {
+                try {
+                    await this.alpaca.cancelOrder(openOrder.id);
+                    console.log('Cancelled open sell order', openOrder);
+                } catch (error) {
+                    console.error('Failed to cancel open sell order', error);
+                }
+            });
+
+            const takeProfitPrice = (parseFloat(openPosition.avg_entry_price) * 1.05).toFixed(2);
+            takeProfitOrder = {
+                symbol: order.symbol,
+                qty: openPosition.qty,
+                side: 'sell',
+                type: 'limit',
+                time_in_force: 'day',
+                limit_price: takeProfitPrice
+            };
+        } else {
+            const takeProfitPrice = (parseFloat(order.filled_avg_price!) * 1.05).toFixed(2);
+            takeProfitOrder = {
+                symbol: order.symbol,
+                qty: order.filled_qty,
+                side: 'sell',
+                type: 'limit',
+                time_in_force: 'day',
+                limit_price: takeProfitPrice
+            };
+        }
 
         try {
             const response = await createOrder(takeProfitOrder);

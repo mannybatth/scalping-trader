@@ -26,6 +26,23 @@ export interface Position {
     change_today: string;
 }
 
+export const getAllOpenPositions = async (): Promise<Position[]> => {
+    try {
+        const response = await axios.get(`${ALPACA_BASE_URL}/v2/positions`, {
+            headers: {
+                'APCA-API-KEY-ID': ALPACA_KEY,
+                'APCA-API-SECRET-KEY': ALPACA_SECRET
+            }
+        });
+        console.log('get all open positions response', response.data);
+        return response.data;
+    } catch (err: any) {
+        const e = err?.response?.data || err;
+        console.log('get all open positions error', e);
+        throw e;
+    }
+};
+
 export const closePosition = async (request: ClosePositionRequest): Promise<any> => {
     try {
         const params: any = {};

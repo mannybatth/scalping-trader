@@ -1,14 +1,16 @@
 import { DateTime } from 'luxon';
-import { createOrder, OrderRequest } from '../alpaca/orders';
-import { AlpacaAccount, getAccount } from '../alpaca/account';
+import { createOrder, getAllOrders, OrderRequest } from '../alpaca/orders';
+import { getAccount } from '../alpaca/account';
 import { getLastOptionQuotesBySymbols } from '../alpaca/option-quote';
+import { getAllOpenPositions } from '../alpaca/positions';
 
 export interface BuyOptionAction {
     contractSymbol: string;
     currentPrice?: number;
+    forceBuy?: boolean;
 }
 
-export const createOrderByContractSymbol = async ({ contractSymbol, currentPrice }: BuyOptionAction): Promise<any> => {
+export const createOrderByContractSymbol = async ({ contractSymbol, currentPrice, forceBuy }: BuyOptionAction): Promise<any> => {
     try {
         console.log('createOrderByContractSymbol', contractSymbol);
 
@@ -24,15 +26,43 @@ export const createOrderByContractSymbol = async ({ contractSymbol, currentPrice
 
         if (!currentPrice) {
             const response = await getLastOptionQuotesBySymbols(contractSymbol);
-            console.log('getLastOptionQuotesBySymbols response', response)
             const quote = response.quotes[contractSymbol];
+
+            if (!quote) {
+                throw new Error('No option quote found for the given symbol.');
+            }
+
+            // currentPrice = (quote.bp + (quote.ap - quote.bp) * 0.80);
             currentPrice = quote.ap;
+            currentPrice = Math.ceil(currentPrice * 100) / 100;
         }
 
         // Fetch the account information
-        const account: AlpacaAccount = await getAccount();
+        const [account, positions, orders] = await Promise.all([getAccount(), getAllOpenPositions(), getAllOrders({
+            status: 'open',
+            side: 'buy'
+        })]);
+
+        // Check if the account has any open positions for the symbol on the same side
+        const openPosition = positions.find(position => position.symbol === contractSymbol);
+        if (openPosition && !forceBuy) {
+            console.log('Exiting: Open position already exists for the symbol.');
+            return;
+        }
+
+        // Check if there are any pending orders for the symbol on the same side
+        const openOrder = orders.find(order => order.symbol === contractSymbol);
+        if (openOrder && !forceBuy) {
+            console.log('Exiting: Open order already exists for the symbol.');
+            return;
+        }
+
+        const accountDayProfit = Number(account.equity) - Number(account.last_equity);
+        const goal = Number(account.last_equity) * 0.02;
+        const isGoalReached = accountDayProfit >= goal;
+
         const buyingPower = parseFloat(account.options_buying_power);
-        const budget = buyingPower * 0.2;
+        const budget = isGoalReached ? buyingPower * 0.1 : buyingPower * 0.2;
         const costPerContract = currentPrice ? currentPrice * 100 : 0;
 
         // Calculate the quantity to buy, min 1, max 500
@@ -40,6 +70,7 @@ export const createOrderByContractSymbol = async ({ contractSymbol, currentPrice
         qty = Math.min(qty, 500);
         qty = Math.max(qty, 1);
 
+        console.log('isGoalReached', isGoalReached);
         console.log('buyingPower', buyingPower);
         console.log('budget', budget);
         console.log('costPerContract', costPerContract);
@@ -50,7 +81,8 @@ export const createOrderByContractSymbol = async ({ contractSymbol, currentPrice
             symbol: contractSymbol,
             qty: qty.toString(),
             side: 'buy',
-            type: 'market',
+            type: 'limit',
+            limit_price: currentPrice.toString(),
             time_in_force: 'day',
             client_order_id: `auto-trade-${contractSymbol}-${now.toISO()}`
         };
